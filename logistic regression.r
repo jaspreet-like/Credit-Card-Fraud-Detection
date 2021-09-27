@@ -79,12 +79,38 @@ model2_prob <- predict(model2, type = "response")
 table(train$Class, model1_prob > 0.5)
 nominal_class_metrics((model1_prob > 0.5), train$Class)
 
+# Metric score on train dataset, assuming CutOff to be 0.5
 table(train$Class, model2_prob > 0.5)
 nominal_class_metrics((model2_prob > 0.5), train$Class)
 
-# Need a lot of experimenting with this ROCR package, will commit the final last part later # nolint
-roc_pred <- prediction(model1_prob, train$Class)
-str(roc_pred)
+# ROC Curve to get area under the curve
+roc_pred <- prediction(model2_prob, train$Class)
 roc_perf <- performance(roc_pred, "tpr", "fpr")
-str(roc_perf)
-plot(roc_perf, colorize = TRUE, text.adj = c(-0.2, 1.7))
+roc_auc <- performance(roc_pred,"auc")
+area <- roc_auc@y.values[[1]]
+area
+plot(roc_perf, avg="threshold", spread.estimate="boxplot" )
+
+# For calculating the optimal cutoff probability for our probability model
+library(InformationValue)
+CutOff <- optimalCutoff(train$Class,model2_prob)
+
+# Checking the optimal cutoff performance on the original dataset
+nominal_class_metrics(model2_prob>CutOff,train$Class)
+
+######################## TESTING ##############################
+# Making the probability vector as per our model on the test dataset
+test_model <- predict(model2, newdata=test, type="response")
+
+# Performance of our model on the test dataset
+nominal_class_metrics(test_model>CutOff,test$Class)
+# Comparing it with default 0.5 cutoff
+nominal_class_metrics(test_model>0.5,test$Class)
+
+# AUC for test dataset
+roc_pred <- prediction(test_model, test$Class)
+roc_perf <- performance(roc_pred, "tpr", "fpr")
+roc_auc <- performance(roc_pred,"auc")
+area <- roc_auc@y.values[[1]]
+area
+plot(roc_perf, avg="threshold", spread.estimate="boxplot" )
