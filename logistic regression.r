@@ -86,31 +86,34 @@ nominal_class_metrics((model2_prob > 0.5), train$Class)
 # ROC Curve to get area under the curve
 roc_pred <- prediction(model2_prob, train$Class)
 roc_perf <- performance(roc_pred, "tpr", "fpr")
-roc_auc <- performance(roc_pred,"auc")
+roc_auc <- performance(roc_pred, "auc")
 area <- roc_auc@y.values[[1]]
 area
-plot(roc_perf, avg="threshold", spread.estimate="boxplot" )
+plot(roc_perf, avg = "threshold", spread.estimate = "boxplot")
 
 # For calculating the optimal cutoff probability for our probability model
 library(InformationValue)
-CutOff <- optimalCutoff(train$Class,model2_prob)
+CutOff <- optimalCutoff(train$Class, model2_prob)
+CutOff
 
 # Checking the optimal cutoff performance on the original dataset
-nominal_class_metrics(model2_prob>CutOff,train$Class)
+nominal_class_metrics(model2_prob > CutOff, train$Class)
+
+
 
 ######################## TESTING ##############################
 # Making the probability vector as per our model on the test dataset
-test_model <- predict(model2, newdata=test, type="response")
+test_model <- predict(model2, newdata = test, type = "response")
 
 # Performance of our model on the test dataset
-nominal_class_metrics(test_model>CutOff,test$Class)
+nominal_class_metrics(test_model > CutOff, test$Class)
 # Comparing it with default 0.5 cutoff
-nominal_class_metrics(test_model>0.5,test$Class)
+nominal_class_metrics(test_model > 0.5, test$Class)
 
 # AUC for test dataset
 roc_pred <- prediction(test_model, test$Class)
 roc_perf <- performance(roc_pred, "tpr", "fpr")
-roc_auc <- performance(roc_pred,"auc")
+roc_auc <- performance(roc_pred, "auc")
 area <- roc_auc@y.values[[1]]
 area
-plot(roc_perf, avg="threshold", spread.estimate="boxplot" )
+plot(roc_perf, avg = "threshold", spread.estimate = "boxplot")
