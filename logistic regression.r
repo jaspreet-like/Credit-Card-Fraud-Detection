@@ -1,7 +1,5 @@
 ######################### Loading the dataset ########################
 library(ROCR)
-library(caret)
-library(ggplot2)
 
 # Loaded with variable name "train"
 load("train_data")
@@ -20,27 +18,30 @@ nominal_class_metrics <- function(predicted, actual) {
     print(paste("True Negatives:", TN, "False Positives:", FP))
     print(paste("False Negatives:", FN, "True Positives:", TP))
     print("--------")
-    print(paste("Accuracy of the model is:", (TP + TN) / (TP + FP + TN + FN)))
+    acc <- (TP + TN) / (TP + FP + TN + FN)
+    print(paste("Accuracy of the model is:", round(acc, digits = 4))) # nolint
 
     prec <- (TP) / (TP + FP)
-    print(paste("Precision of the model is:", prec))
+    print(paste("Precision of the model is:", round(prec, digits = 4)))
 
     recall <- (TP) / (TP + FN)
-    print(paste("Recall/Sensitivity of the model is:", recall))
+    print(paste("Recall/Sensitivity of the model is:", round(recall, digits = 4))) # nolint
 
-    print(paste("Specificity of the model is:", (TN) / (TN + FP)))
+    spec <- (TN) / (TN + FP)
+    print(paste("Specificity of the model is:", round(spec, digits = 4))) # nolint
 
-    print(paste("F1 score of the model is:", (2 * prec * recall) / (prec + recall))) # nolint
+    f1 <- (2 * prec * recall) / (prec + recall)
+    print(paste("F1 score of the model is:", round(f1, digits = 4))) # nolint
 
-    print(paste("G score of the model is:", sqrt(prec * recall())))
+    g <- sqrt(prec * recall)
+    print(paste("G score of the model is:", round(g, digits = 4))) # nolint
 
     POS <- TP + FN
     NEG <- FP + TN
     PPOS <- TP + FP
     PNEG <- FN + TN
-    mcc <- (TP * TN + FP * FN) / sqrt(POS * NEG * PPOS * PNEG)
-    print(paste("Mathews Correlation Coefficient is:", mcc))
-
+    mcc <- (TP * TN + FP * FN) / (sqrt(POS * NEG) * sqrt(PPOS * PNEG))
+    print(paste("Mathews Correlation Coefficient is:", round(mcc, digits = 4)))
 }
 
 
@@ -61,7 +62,7 @@ print(paste("Testing frauds:", sum(test$Class), "out of", nrow(test)))
 
 ################# Fitting a Logistic Regression Model ###################
 
-# Fitted response to binomial family(BUT WHY?)
+# Fitted response to binomial family as our response is only 0 and 1
 model1 <- glm(Class ~ ., data = train, family = binomial)
 summary(model1)
 
@@ -74,8 +75,8 @@ model1_prob <- predict(model1, type = "response")
 model2_prob <- predict(model2, type = "response")
 
 # I tried finding a package which can tell me all these metrics scores
-# Found one - 'caret'. I tried a lot to implement it, but couldn't.
-# So, I wrote my own function which calculates all these metric scores 
+# Tried - 'caret'. I couldn't use it due to the error of variable types.
+# So, I wrote my own function which calculates all these metric scores
 table(train$Class, model1_prob > 0.5)
 nominal_class_metrics((model1_prob > 0.5), train$Class)
 
@@ -83,13 +84,18 @@ nominal_class_metrics((model1_prob > 0.5), train$Class)
 table(train$Class, model2_prob > 0.5)
 nominal_class_metrics((model2_prob > 0.5), train$Class)
 
-# ROC Curve to get area under the curve
+# ROC Curve and AUC-area under the curve
 roc_pred <- prediction(model2_prob, train$Class)
 roc_perf <- performance(roc_pred, "tpr", "fpr")
+plot(roc_perf, avg = "threshold", spread.estimate = "boxplot")
+
 roc_auc <- performance(roc_pred, "auc")
 area <- roc_auc@y.values[[1]]
-area
-plot(roc_perf, avg = "threshold", spread.estimate = "boxplot")
+print(paste("Area: ", area))
+
+# Precision-Recall Curve to visualize the model better
+roc_perf2 <- performance(roc_pred, "rec", "prec")
+plot(roc_perf2, avg = "threshold", spread.estimate = "boxplot")
 
 # For calculating the optimal cutoff probability for our probability model
 library(InformationValue)
@@ -110,10 +116,11 @@ nominal_class_metrics(test_model > CutOff, test$Class)
 # Comparing it with default 0.5 cutoff
 nominal_class_metrics(test_model > 0.5, test$Class)
 
-# AUC for test dataset
+# ROC and AUC for test dataset
 roc_pred <- prediction(test_model, test$Class)
 roc_perf <- performance(roc_pred, "tpr", "fpr")
+plot(roc_perf, avg = "threshold", spread.estimate = "boxplot")
+
 roc_auc <- performance(roc_pred, "auc")
 area <- roc_auc@y.values[[1]]
-area
-plot(roc_perf, avg = "threshold", spread.estimate = "boxplot")
+print(paste("Area: ", area))
