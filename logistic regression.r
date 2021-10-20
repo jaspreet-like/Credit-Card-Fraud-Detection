@@ -8,6 +8,7 @@ load("test_data")
 # Variable names can also be verified using ls() function in console
 
 # Function to measure nominal class performance of the model
+# NOTE: predicted should be as.logical and actual should be as.numeric
 nominal_class_metrics <- function(predicted, actual) {
     TP <- sum(actual[predicted])
     FP <- sum(!actual[predicted])
