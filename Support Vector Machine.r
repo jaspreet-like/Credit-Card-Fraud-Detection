@@ -54,11 +54,11 @@ test$Class <- as.factor(test$Class) # nolint
 ######################### TRAINING ############################
 library(e1071)
 
-# Caution: It'll take around 5 minutes to model svm on train dataset
+# Caution: It'll take around 5 minutes to model each svm on train dataset
 svm_model1 <- svm(Class ~ ., data = train, kernel = "polynomial", scale = TRUE)
 svm_model2 <- svm(Class ~ ., data = train, kernel = "radial", scale = TRUE)
 svm_model3 <- svm(Class ~ ., data = train, kernel = "sigmoid", scale = TRUE)
-svm_pred1 <- predict(svm_model, type = "response")
+svm_pred1 <- predict(svm_model1, type = "response")
 svm_pred2 <- predict(svm_model2, type = "response")
 svm_pred3 <- predict(svm_model3, type = "response")
 
