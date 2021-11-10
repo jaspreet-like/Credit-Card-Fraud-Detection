@@ -47,77 +47,34 @@ nominal_class_metrics <- function(predicted, actual) {
     print(paste("Mathews Correlation Coefficient is:", round(mcc, digits = 4)))
 }
 
-# We create a "small" dataset having "fr" = number of fraudulent observations
-# and "any" = number of random samples from original train dataset
-fr <- 100
-any <- 10000
-t <- train[train$Class == 1, ]
-t <- t[sample(nrow(t), fr), ]
-small <- rbind(t, train[sample(nrow(train), any), ])
-
-fr <- 33
-any <- 3333
-t <- test[test$Class == 1, ]
-t <- t[sample(nrow(t), fr), ]
-small_test <- rbind(t, test[sample(nrow(test), any), ])
-
 # We make "Class" feature of all datasets as factor
 train$Class <- as.factor(train$Class) # nolint
 test$Class <- as.factor(test$Class) # nolint
-small$Class <- as.factor(small$Class) # nolint
-small_test$Class <- as.factor(small_test$Class) # nolint
-
-################# Fitting SVM Model on small training dataset ###################
-library(e1071)
-
-model11 <- svm(Class ~ ., data = small, kernel = "polynomial", scale = TRUE)
-model21 <- svm(Class ~ ., data = small, kernel = "polynomial", cost = 100, scale = TRUE) # nolint
-model31 <- svm(Class ~ ., data = small, kernel = "polynomial", coef = 100, scale = TRUE) # nolint
-model41 <- svm(Class ~ ., data = small, kernel = "polynomial", cost = 10, coef = 10, scale = TRUE) # nolint
-model51 <- svm(Class ~ ., data = small, kernel = "radial", scale = TRUE)
-model61 <- svm(Class ~ ., data = small, kernel = "sigmoid", scale = TRUE)
-
-pred11 <- predict(model11, type = "response")
-pred21 <- predict(model21, type = "response")
-pred31 <- predict(model31, type = "response")
-pred41 <- predict(model41, type = "response")
-pred51 <- predict(model51, type = "response")
-pred61 <- predict(model61, type = "response")
-
-nominal_class_metrics(pred11, small$Class)
-nominal_class_metrics(pred21, small$Class)
-nominal_class_metrics(pred31, small$Class)
-nominal_class_metrics(pred41, small$Class)
-nominal_class_metrics(pred51, small$Class)
-nominal_class_metrics(pred61, small$Class)
-
-pred11 <- predict(model11, newdata = small_test, type = "response")
-pred21 <- predict(model21, newdata = small_test, type = "response")
-pred31 <- predict(model31, newdata = small_test, type = "response")
-pred41 <- predict(model41, newdata = small_test, type = "response")
-pred51 <- predict(model51, newdata = small_test, type = "response")
-pred61 <- predict(model61, newdata = small_test, type = "response")
-
-nominal_class_metrics(pred11, small_test$Class)
-nominal_class_metrics(pred21, small_test$Class)
-nominal_class_metrics(pred31, small_test$Class)
-nominal_class_metrics(pred41, small_test$Class)
-nominal_class_metrics(pred51, small_test$Class)
-nominal_class_metrics(pred61, small_test$Class)
 
 ######################### TRAINING ############################
+library(e1071)
 
-# NOTE: It'll take around 5 minutes to model svm on train dataset
-svm_model <- svm(Class ~ ., data = train, kernel = "polynomial", scale = TRUE)
-svm_pred <- predict(svm_model, type = "response")
+# Caution: It'll take around 5 minutes to model svm on train dataset
+svm_model1 <- svm(Class ~ ., data = train, kernel = "polynomial", scale = TRUE)
+svm_model2 <- svm(Class ~ ., data = train, kernel = "radial", scale = TRUE)
+svm_model3 <- svm(Class ~ ., data = train, kernel = "sigmoid", scale = TRUE)
+svm_pred1 <- predict(svm_model, type = "response")
+svm_pred2 <- predict(svm_model2, type = "response")
+svm_pred3 <- predict(svm_model3, type = "response")
 
 # Performance of our model on training data
-nominal_class_metrics(svm_pred, train$Class)
+nominal_class_metrics(svm_pred1, train$Class)
+nominal_class_metrics(svm_pred2, train$Class)
+nominal_class_metrics(svm_pred3, train$Class)
 
 ######################## TESTING ##############################
 
 # Making the probability vector as per our model on the test dataset
-test_model <- predict(svm_model, newdata = test, type = "response")
+test_pred1 <- predict(svm_model1, newdata = test, type = "response")
+test_pred2 <- predict(svm_model2, newdata = test, type = "response")
+test_pred3 <- predict(svm_model3, newdata = test, type = "response")
 
-# Performance of our model on test dataset
-nominal_class_metrics(test_model, test$Class)
+# Performance of our model on test data
+nominal_class_metrics(test_pred1, test$Class)
+nominal_class_metrics(test_pred2, test$Class)
+nominal_class_metrics(test_pred3, test$Class)

@@ -49,6 +49,7 @@ summary(fraud_tree)
 plot(fraud_tree)
 text(fraud_tree, pretty = 0)
 
+cv_fraud <- cv.tree(fraud_tree,)
 ######################## TESTING ##########################
 fraud_pred <- predict(fraud_tree, newdata = test, type = "class")
 

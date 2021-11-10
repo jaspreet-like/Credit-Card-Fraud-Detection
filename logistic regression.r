@@ -63,7 +63,7 @@ print(paste("Testing frauds:", sum(test$Class), "out of", nrow(test)))
 
 
 
-################# Fitting a Logistic Regression Model ###################
+################# Training ###################
 
 # Fitted response to binomial family as our response is only 0 and 1
 model1 <- glm(Class ~ ., data = train, family = binomial)
@@ -134,7 +134,7 @@ plot(roc_perf2, avg = "threshold")
 # Calculating Optimal cutoff for test data
 CutOff <- optimalCutoff(test$Class, test_model) # nolint
 
-# Performance of our model wrt optimal cutoff-0.12 and our initial assumed cutoff-0.5 # nolint 
+# Performance of our model on test dataset # nolint 
 nominal_class_metrics(test_model > CutOff, test$Class)
 nominal_class_metrics(test_model > 0.5, test$Class)
 
