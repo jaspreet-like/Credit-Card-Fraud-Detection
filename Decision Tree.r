@@ -40,6 +40,16 @@ nominal_class_metrics <- function(predicted, actual) {
     mcc <- (TP * TN + FP * FN) / (sqrt(POS * NEG) * sqrt(PPOS * PNEG))
     print(paste("Mathews Correlation Coefficient is:", round(mcc, digits = 4)))
 }
+auc_roc_metric <- function(model_prob, actual) {
+    actual_numeric <- as.numeric(actual)
+    roc_pred <- prediction(model_prob, actual_numeric)
+    roc_perf <- performance(roc_pred, "rec", "prec")
+    plot(roc_perf, avg = "threshold")
+
+    roc_auc <- performance(roc_pred, "auc")
+    area <- roc_auc@y.values[[1]]
+    print(paste("Area under ROC curve: ", round(area, digits = 4)))
+}
 train$Class <- as.factor(train$Class)
 test$Class <- as.factor(test$Class)
 
@@ -48,8 +58,10 @@ fraud_tree <- tree(Class ~ ., data = train)
 summary(fraud_tree)
 plot(fraud_tree)
 text(fraud_tree, pretty = 0)
+fraud_pred <- predict(fraud_tree, newdata = train, type = "class")
+nominal_class_metrics(fraud_pred, train$Class)
 
-cv_fraud <- cv.tree(fraud_tree,)
+cv_fraud <- cv.tree(fraud_tree, FUN = prune.misclass)
 ######################## TESTING ##########################
 fraud_pred <- predict(fraud_tree, newdata = test, type = "class")
 
