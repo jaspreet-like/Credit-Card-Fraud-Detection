@@ -1,4 +1,5 @@
-######################### Loading the dataset ########################
+######################### LOADING DATASET ########################
+library(ROCR)
 
 # Loaded with variable name "train"
 load("train_data")
@@ -42,11 +43,39 @@ nominal_class_metrics <- function(predicted, actual) {
     PNEG <- FN + TN
     mcc <- (TP * TN + FP * FN) / (sqrt(POS * NEG) * sqrt(PPOS * PNEG))
     print(paste("Mathews Correlation Coefficient is:", round(mcc, digits = 4)))
+
+    return(list(prec, recall))
+}
+
+# NOTE: model_prob should be as.numeric and actual can be integer/numeric
+auc_roc_metric <- function(model_prob, actual, CutOff) {
+    actual_numeric <- as.numeric(actual)
+    roc_pred <- prediction(model_prob, actual_numeric)
+
+    # Precision-Recall Curve
+    roc_perf <- performance(roc_pred, "prec", "rec")
+    plot(roc_perf, avg = "threshold")
+
+    # ROC Curve
+    # roc_perf2 <- performance(roc_pred, "tpr", "fpr")
+    # plot(roc_perf2, avg = "threshold")
+
+    a <- nominal_class_metrics(model_prob > 0.5, actual)
+    print(paste("-----------------X----------------"))
+    b <- nominal_class_metrics(model_prob > CutOff, actual)
+
+    # Marking these precision recall on the precison-recall curve
+    points(a[[2]], a[[1]], pch = 20, cex = 3, col = "red")
+    points(b[[2]], b[[1]], pch = 20, cex = 3, col = "forest green")
+
+    roc_auc <- performance(roc_pred, "auc")
+    area <- roc_auc@y.values[[1]]
+    print(paste("-----------------X----------------"))
+    print(paste("Area under ROC curve: ", round(area, digits = 4)))
 }
 
 
-
-################## Getting familiar with the dataset ###################
+################## GETTING FAMILIAR WITH DATASET ###################
 
 # very handy command to get a one liner brief summary of features
 str(train)
@@ -63,7 +92,7 @@ print(paste("Testing frauds:", sum(test$Class), "out of", nrow(test)))
 
 
 
-################# Training ###################
+################# TRAINING ###################
 
 # Fitted response to binomial family as our response is only 0 and 1
 model1 <- glm(Class ~ ., data = train, family = binomial)
@@ -76,43 +105,19 @@ summary(model2)
 # This is a vector storing probabilities of each observation to be fraudulent
 model2_prob <- predict(model2, type = "response")
 
-# Confusion matrix, assuming CutOff to be 0.5
-table(train$Class, model2_prob > 0.5)
-
-# I wrote my own function which calculates all the relevant performance metric scores # nolint
-nominal_class_metrics((model2_prob > 0.5), train$Class)
-
-# ROC Curve and AUC (area under the curve)
-library(ROCR)
-roc_pred <- prediction(model2_prob, train$Class)
-roc_perf <- performance(roc_pred, "tpr", "fpr")
-plot(roc_perf, avg = "threshold")
-
-roc_auc <- performance(roc_pred, "auc")
-area <- roc_auc@y.values[[1]]
-print(paste("Area under ROC curve: ", round(area, digits = 4)))
-
-# Precision-Recall Curve to visualize the model better
-roc_perf1 <- performance(roc_pred, "rec", "prec")
-plot(roc_perf1, avg = "threshold")
-
 # For calculating the optimal cutoff probability for our probability model
 library(InformationValue)
 CutOff <- optimalCutoff(train$Class, model2_prob) # nolint
 CutOff
 
-# To make sense of this cutoff, we look at highest 500 probabilities
+# I wrote my own metric functions which calculates all the relevant performance metric scores # nolint
+auc_roc_metric(model2_prob, train$Class, CutOff)
+
+# Why is this CutOff so small? - we look at highest 500 probabilities
 head(sort(model2_prob, decreasing = TRUE), 500)
 sum(model2_prob > 0.5)
 sum(model2_prob > 0.12)
 
-# Comparing the performance metrics wrt optimal cutoff-0.12 and our initial assumed cutoff-0.5 # nolint
-nominal_class_metrics(model2_prob > CutOff, train$Class)
-nominal_class_metrics(model2_prob > 0.5, train$Class)
-
-# Marking these precision recall on the precison-recall curve
-points(0.8415, 0.8, pch = 20, cex = 3, col = "red")
-points(0.9065, 0.6904, pch = 20, cex = 3, col = "forest green")
 
 
 
@@ -121,23 +126,9 @@ points(0.9065, 0.6904, pch = 20, cex = 3, col = "forest green")
 # Making the probability vector as per our model on the test dataset
 test_model <- predict(model2, newdata = test, type = "response")
 
-# AUC for test dataset and precision-recall curve
-roc_pred2 <- prediction(test_model, test$Class)
-
-roc_auc <- performance(roc_pred2, "auc")
-area <- roc_auc@y.values[[1]]
-print(paste("Area under ROC curve: ", round(area, digits = 4)))
-
-roc_perf2 <- performance(roc_pred2, "rec", "prec")
-plot(roc_perf2, avg = "threshold")
-
 # Calculating Optimal cutoff for test data
 CutOff <- optimalCutoff(test$Class, test_model) # nolint
+CutOff
 
-# Performance of our model on test dataset # nolint 
-nominal_class_metrics(test_model > CutOff, test$Class)
-nominal_class_metrics(test_model > 0.5, test$Class)
-
-# Marking these precision recall points on the precison-recall curve
-points(0.727, 0.693, pch = 20, cex = 3, col = "red")
-points(0.761, 0.653, pch = 20, cex = 3, col = "forest green")
+# AUC for test dataset and precision-recall curve
+auc_roc_metric(test_model, test$Class, CutOff)

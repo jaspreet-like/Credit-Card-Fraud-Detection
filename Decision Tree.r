@@ -1,5 +1,6 @@
 library(ISLR)
 library(tree)
+library(ROCR)
 load("train_data")
 load("test_data")
 
@@ -62,6 +63,10 @@ fraud_pred <- predict(fraud_tree, newdata = train, type = "class")
 nominal_class_metrics(fraud_pred, train$Class)
 
 cv_fraud <- cv.tree(fraud_tree, FUN = prune.misclass)
+
+#auc_roc_metric(fraud_pred, train$Class)
+
+
 ######################## TESTING ##########################
 fraud_pred <- predict(fraud_tree, newdata = test, type = "class")
 

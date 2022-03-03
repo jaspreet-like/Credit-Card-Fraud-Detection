@@ -1,5 +1,8 @@
 ######################### Preparing the dataset ########################
 set.seed(41)
+library(e1071)
+library(ROCR)
+library(InformationValue)
 
 # Loaded with variable name "train"
 load("train_data")
@@ -7,7 +10,7 @@ load("train_data")
 # Loaded with variable name "test"
 load("test_data")
 
-# Performance mertics function
+# Performance metrics function
 # NOTE: Both predicted and actual should be as.factor
 nominal_class_metrics <- function(predicted, actual) {
     actual <- as.numeric(levels(actual))[actual] # nolint
@@ -47,12 +50,22 @@ nominal_class_metrics <- function(predicted, actual) {
     print(paste("Mathews Correlation Coefficient is:", round(mcc, digits = 4)))
 }
 
+auc_roc_metric <- function(model_prob, actual) {
+    actual_numeric <- as.numeric(actual)
+    roc_pred <- prediction(model_prob, actual_numeric)
+    roc_perf <- performance(roc_pred, "rec", "prec")
+    plot(roc_perf, avg = "threshold")
+
+    roc_auc <- performance(roc_pred, "auc")
+    area <- roc_auc@y.values[[1]]
+    print(paste("Area under ROC curve: ", round(area, digits = 4)))
+}
+
 # We make "Class" feature of all datasets as factor
 train$Class <- as.factor(train$Class) # nolint
 test$Class <- as.factor(test$Class) # nolint
 
 ######################### TRAINING ############################
-library(e1071)
 
 # Caution: It'll take around 5 minutes to model each svm on train dataset
 svm_model1 <- svm(Class ~ ., data = train, kernel = "polynomial", scale = TRUE)
@@ -64,8 +77,11 @@ svm_pred3 <- predict(svm_model3, type = "response")
 
 # Performance of our model on training data
 nominal_class_metrics(svm_pred1, train$Class)
+auc_roc_metric(svm_pred1, train$Class)
 nominal_class_metrics(svm_pred2, train$Class)
+auc_roc_metric(svm_pred2, train$Class)
 nominal_class_metrics(svm_pred3, train$Class)
+auc_roc_metric(svm_pred3, train$Class)
 
 ######################## TESTING ##############################
 
@@ -76,5 +92,8 @@ test_pred3 <- predict(svm_model3, newdata = test, type = "response")
 
 # Performance of our model on test data
 nominal_class_metrics(test_pred1, test$Class)
+auc_roc_metric(test_pred1, test$Class)
 nominal_class_metrics(test_pred2, test$Class)
+auc_roc_metric(test_pred2, test$Class)
 nominal_class_metrics(test_pred3, test$Class)
+auc_roc_metric(test_pred3, test$Class)
