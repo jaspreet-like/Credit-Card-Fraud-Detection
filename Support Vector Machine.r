@@ -10,11 +10,17 @@ load("train_data")
 # Loaded with variable name "test"
 load("test_data")
 
+# Small dataset with 1010 observations for quick check test
+a <- train[1:1000, ]
+b <- train[which(train$Class == 1), ]
+c <- b[1:10, ]
+small_train <- rbind(a, c)
+
 # Performance metrics function
 # NOTE: Both predicted and actual should be as.factor
 nominal_class_metrics <- function(predicted, actual) {
     actual <- as.numeric(levels(actual))[actual] # nolint
-    predicted <- as.logical(as.integer(levels(predicted)[predicted]))
+    # predicted <- as.logical(as.integer(levels(predicted)[predicted]))
 
     TP <- sum(actual[predicted])
     FP <- sum(!actual[predicted])
@@ -48,36 +54,56 @@ nominal_class_metrics <- function(predicted, actual) {
     PNEG <- FN + TN
     mcc <- (TP * TN + FP * FN) / (sqrt(POS * NEG) * sqrt(PPOS * PNEG))
     print(paste("Mathews Correlation Coefficient is:", round(mcc, digits = 4)))
+
+    return(list(prec, recall))
 }
 
+# NOTE: model_prob should be as.numeric and actual can be integer/numeric
+auc_roc_metric <- function(model_prob, actual_factor, CutOff) { # nolint
+    actual_numeric <-  as.numeric(levels(actual_factor))[actual_factor] # nolint
+    roc_pred <- prediction(model_prob, actual_numeric)
+
+    # Precision-Recall Curve
+    roc_perf <- performance(roc_pred, "prec", "rec")
+    plot(roc_perf, avg = "threshold")
+
+    # ROC Curve
+    # roc_perf2 <- performance(roc_pred, "tpr", "fpr") # nolint
+    # plot(roc_perf2, avg = "threshold") # nolint
+
+    a <- nominal_class_metrics(model_prob > 0.5, actual_factor)
+    print(paste("-----------------X----------------"))
+    b <- nominal_class_metrics(model_prob > CutOff, actual_factor)
+
+    # Marking these precision recall on the precison-recall curve
+    points(a[[2]], a[[1]], pch = 20, cex = 3, col = "red")
+    points(b[[2]], b[[1]], pch = 20, cex = 3, col = "forest green")
+
+    roc_auc <- performance(roc_pred, "auc")
+    area <- roc_auc@y.values[[1]]
+    print(paste("-----------------X----------------"))
+    print(paste("Area under ROC curve: ", round(area, digits = 4)))
+}
 # We make "Class" feature of all datasets as factor
 train$Class <- as.factor(train$Class) # nolint
 test$Class <- as.factor(test$Class) # nolint
+small_train$Class <- as.factor(small_train$Class) # nolint
 
 ######################### TRAINING ############################
 
 # Caution: It'll take around 5 minutes to model each svm on train dataset
-svm_model1 <- svm(Class ~ ., data = train, kernel = "polynomial", scale = TRUE)
-svm_model2 <- svm(Class ~ ., data = train, kernel = "radial", scale = TRUE)
-svm_model3 <- svm(Class ~ ., data = train, kernel = "sigmoid", scale = TRUE)
-svm_pred1 <- predict(svm_model1, type = "response")
-svm_pred2 <- predict(svm_model2, type = "response")
-svm_pred3 <- predict(svm_model3, type = "response")
-
-# Performance of our model on training data
-nominal_class_metrics(svm_pred1, train$Class)
-nominal_class_metrics(svm_pred2, train$Class)
-nominal_class_metrics(svm_pred3, train$Class)
-
+svm_model1 <- svm(Class ~ ., data = small_train, kernel = "polynomial",
+                    scale = TRUE, probability = TRUE)
+svm_pred1 <- predict(svm_model1, decision.values = TRUE, probability = TRUE)
+model <- attr(svm_pred1, "probabilities") [, 2]
+auc_roc_metric(model, small_train$Class, 0.5)
 
 ######################## TESTING ##############################
 
 # Making the probability vector as per our model on the test dataset
-test_pred1 <- predict(svm_model1, newdata = test, type = "response")
-test_pred2 <- predict(svm_model2, newdata = test, type = "response")
-test_pred3 <- predict(svm_model3, newdata = test, type = "response")
-
-# Performance of our model on test data
-nominal_class_metrics(test_pred1, test$Class)
-nominal_class_metrics(test_pred2, test$Class)
-nominal_class_metrics(test_pred3, test$Class)
+test_pred1 <- predict(svm_model1, newdata = test,
+                        decision.values = TRUE, probability = TRUE)
+test_model <- attr(test_pred1, "probabilities") [, 2]
+CutOff <- optimalCutoff(test$Class, test_model) # nolint
+head(sort(test_model, decreasing = TRUE), 100)
+auc_roc_metric(test_model, test$Class, CutOff)

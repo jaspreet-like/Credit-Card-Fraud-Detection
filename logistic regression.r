@@ -1,5 +1,6 @@
 ######################### LOADING DATASET ########################
 library(ROCR)
+library(InformationValue)
 
 # Loaded with variable name "train"
 load("train_data")
@@ -9,8 +10,11 @@ load("test_data")
 # Variable names can also be verified using ls() function in console
 
 # Function to measure nominal class performance of the model
-# NOTE: predicted should be as.logical and actual should be as.numeric
-nominal_class_metrics <- function(predicted, actual) {
+# NOTE: predicted should be as.logical and actual should be as.factor
+nominal_class_metrics <- function(predicted, actual_factor) {
+    actual <- as.numeric(levels(actual_factor))[actual_factor] # nolint
+    #predicted <- as.logical(as.integer(levels(predicted_factor))[predicted_factor]) # nolint
+
     TP <- sum(actual[predicted])
     FP <- sum(!actual[predicted])
     TN <- sum(!actual[!predicted])
@@ -47,9 +51,9 @@ nominal_class_metrics <- function(predicted, actual) {
     return(list(prec, recall))
 }
 
-# NOTE: model_prob should be as.numeric and actual can be integer/numeric
-auc_roc_metric <- function(model_prob, actual, CutOff) {
-    actual_numeric <- as.numeric(actual)
+# NOTE: model_prob should be as.numeric and actual can be factor
+auc_roc_metric <- function(model_prob, actual_factor, CutOff) {
+    actual_numeric <-  as.numeric(levels(actual_factor))[actual_factor] # nolint
     roc_pred <- prediction(model_prob, actual_numeric)
 
     # Precision-Recall Curve
@@ -57,12 +61,14 @@ auc_roc_metric <- function(model_prob, actual, CutOff) {
     plot(roc_perf, avg = "threshold")
 
     # ROC Curve
-    # roc_perf2 <- performance(roc_pred, "tpr", "fpr")
-    # plot(roc_perf2, avg = "threshold")
+    # roc_perf2 <- performance(roc_pred, "tpr", "fpr") # nolint
+    # plot(roc_perf2, avg = "threshold") # nolint
 
-    a <- nominal_class_metrics(model_prob > 0.5, actual)
-    print(paste("-----------------X----------------"))
-    b <- nominal_class_metrics(model_prob > CutOff, actual)
+    print(paste("Metrics with 0.5 as cutoff"))
+    a <- nominal_class_metrics(model_prob > 0.5, actual_factor)
+    print(paste("                           "))
+    print(paste("Metrics with optimal cutoff"))
+    b <- nominal_class_metrics(model_prob > CutOff, actual_factor)
 
     # Marking these precision recall on the precison-recall curve
     points(a[[2]], a[[1]], pch = 20, cex = 3, col = "red")
@@ -85,7 +91,7 @@ str(test)
 sum(is.na(train))
 sum(is.na(test))
 
-# just checking how imbalanced is our dataset
+# Just checking how imbalanced is our dataset
 print(paste("Training frauds:", sum(train$Class), "out of", nrow(train)))
 print(paste("Testing frauds:", sum(test$Class), "out of", nrow(test)))
 
@@ -106,11 +112,11 @@ summary(model2)
 model2_prob <- predict(model2, type = "response")
 
 # For calculating the optimal cutoff probability for our probability model
-library(InformationValue)
 CutOff <- optimalCutoff(train$Class, model2_prob) # nolint
 CutOff
 
 # I wrote my own metric functions which calculates all the relevant performance metric scores # nolint
+train$Class <- as.factor(train$Class)
 auc_roc_metric(model2_prob, train$Class, CutOff)
 
 # Why is this CutOff so small? - we look at highest 500 probabilities
@@ -131,4 +137,5 @@ CutOff <- optimalCutoff(test$Class, test_model) # nolint
 CutOff
 
 # AUC for test dataset and precision-recall curve
+test$Class <- as.factor(test$Class)
 auc_roc_metric(test_model, test$Class, CutOff)
