@@ -50,11 +50,11 @@ nominal_class_metrics <- function(predicted, actual) {
 }
 auc_roc_metric <- function(model_prob, actual) {
     actual_numeric <- as.numeric(actual)
-    roc_pred <- prediction(model_prob, actual_numeric)
-    roc_perf <- performance(roc_pred, "rec", "prec")
+    roc_pred <- prediction(model_prob, actual_numeric) # nolint
+    roc_perf <- performance(roc_pred, "rec", "prec") # nolint
     plot(roc_perf, avg = "threshold")
 
-    roc_auc <- performance(roc_pred, "auc")
+    roc_auc <- performance(roc_pred, "auc") # nolint
     area <- roc_auc@y.values[[1]]
     print(paste("Area under ROC curve: ", round(area, digits = 4)))
 }
