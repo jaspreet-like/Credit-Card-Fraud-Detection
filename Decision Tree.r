@@ -67,9 +67,11 @@ test$Class <- as.factor(test$Class)
 
 fraud_tree1 <- tree(Class ~ ., data = train)
 summary(fraud_tree1)
+pdf("tree.pdf", width = 6, height = 4)
 plot(fraud_tree1)
 text(fraud_tree1, pretty = 0)
 title(main = "Unpruned Decision tree")
+dev.off()
 # To get a vector of probabilities, we can use type="vector"
 fraud_pred1 <- predict(fraud_tree1, newdata = train, type = "class")
 nominal_class_metrics(fraud_pred1, train$Class)
