@@ -17,10 +17,10 @@ c <- b[1:10, ]
 small_train <- rbind(a, c)
 
 # Performance metrics function
-# NOTE: Both predicted and actual should be as.factor
+# NOTE: Predicted should be as.logical and actual should be as.factor
 nominal_class_metrics <- function(predicted, actual) {
     actual <- as.numeric(levels(actual))[actual] # nolint
-    # predicted <- as.logical(as.integer(levels(predicted)[predicted]))
+    # predicted <- as.logical(as.integer(levels(predicted)[predicted])) # nolint
 
     TP <- sum(actual[predicted])
     FP <- sum(!actual[predicted])
@@ -58,7 +58,7 @@ nominal_class_metrics <- function(predicted, actual) {
     return(list(prec, recall))
 }
 
-# NOTE: model_prob should be as.numeric and actual can be integer/numeric
+# NOTE: model_prob should be as.numeric and actual_factor should be as.factor
 auc_roc_metric <- function(model_prob, actual_factor, CutOff) { # nolint
     actual_numeric <-  as.numeric(levels(actual_factor))[actual_factor] # nolint
     roc_pred <- prediction(model_prob, actual_numeric)
@@ -91,12 +91,16 @@ small_train$Class <- as.factor(small_train$Class) # nolint
 
 ######################### TRAINING ############################
 
-# Caution: It'll take around 5 minutes to model each svm on train dataset
-svm_model1 <- svm(Class ~ ., data = small_train, kernel = "polynomial",
-                    scale = TRUE, probability = TRUE)
-svm_pred1 <- predict(svm_model1, decision.values = TRUE, probability = TRUE)
+# Caution: It'll take around 10 sec to train on "small_train" dataset and
+# about 8-10 minutes on "train" dataset
+svm_model1 <- svm(Class ~ ., data = train, probability = TRUE)
+
+svm_pred1 <- predict(svm_model1, train, probability = TRUE)
 model <- attr(svm_pred1, "probabilities") [, 2]
-auc_roc_metric(model, small_train$Class, 0.5)
+CutOff1 <- optimalCutoff(train$Class, model) # nolint
+
+# Metrics
+auc_roc_metric(model, train$Class, 0.5)
 
 ######################## TESTING ##############################
 
@@ -104,6 +108,10 @@ auc_roc_metric(model, small_train$Class, 0.5)
 test_pred1 <- predict(svm_model1, newdata = test,
                         decision.values = TRUE, probability = TRUE)
 test_model <- attr(test_pred1, "probabilities") [, 2]
-CutOff <- optimalCutoff(test$Class, test_model) # nolint
-head(sort(test_model, decreasing = TRUE), 100)
-auc_roc_metric(test_model, test$Class, CutOff)
+CutOff2 <- optimalCutoff(test$Class, test_model) # nolint
+
+# Reason why 'CutOff' is so low
+head(sort(test_model, decreasing = TRUE), 500)
+
+# Metrics
+auc_roc_metric(test_model, test$Class, CutOff2)
