@@ -106,6 +106,8 @@ summary(model1)
 
 # New model ignoring the non-useful features
 model2 <- glm(Class ~ V1 + V4 + V6 + V8 + V10 + V13 + V14 + V16 + V20 + V21 + V22 + V23 + V27 + Amount, data = train, family = binomial) # nolint
+saveRDS(model2, "logisticRegression.rds")
+# model2 <- readRDS("logisticRegression.rds") # nolint
 summary(model2)
 
 # This is a vector storing probabilities of each observation to be fraudulent

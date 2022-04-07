@@ -94,6 +94,8 @@ small_train$Class <- as.factor(small_train$Class) # nolint
 # Caution: It'll take around 10 sec to train on "small_train" dataset and
 # about 8-10 minutes on "train" dataset
 svm_model1 <- svm(Class ~ ., data = train, probability = TRUE)
+saveRDS(svm_model1, "svm.rds")
+ svm_model1 <- readRDS("svm.rds")
 
 svm_pred1 <- predict(svm_model1, train, probability = TRUE)
 model <- attr(svm_pred1, "probabilities") [, 2]

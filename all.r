@@ -127,7 +127,7 @@ auc_roc_metric <- function(model_prob, actual, CutOff) {
     print(paste("Area under ROC curve: ", round(area, digits = 4)))
 }
 
-model2 <- glm(Class ~ V1 + V4 + V6 + V8 + V10 + V13 + V14 + V16 + V20 + V21 + V22 + V23 + V27 + Amount, data = train, family = binomial) # nolint
+model2 <- readRDS("logisticRegression.rds")
 test_model <- predict(model2, newdata = test, type = "response")
 CutOff <- optimalCutoff(test$Class, test_model) # nolint
 auc_roc_metric(test_model, test$Class, CutOff)
