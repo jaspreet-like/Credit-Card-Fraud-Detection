@@ -13,7 +13,6 @@ load("test_data")
 
 nominal_class_metrics <- function(predicted, actual) {
     actual <- as.numeric(levels(actual))[actual] # nolint
-    predicted <- as.logical(as.integer(levels(predicted)[predicted]))
 
     TP <- sum(actual[predicted])
     FP <- sum(!actual[predicted])
@@ -47,15 +46,32 @@ nominal_class_metrics <- function(predicted, actual) {
     PNEG <- FN + TN
     mcc <- (TP * TN + FP * FN) / (sqrt(POS * NEG) * sqrt(PPOS * PNEG))
     print(paste("Mathews Correlation Coefficient is:", round(mcc, digits = 4)))
+
+    return(list(prec, recall))
 }
-auc_roc_metric <- function(model_prob, actual) {
-    actual_numeric <- as.numeric(actual)
-    roc_pred <- prediction(model_prob, actual_numeric) # nolint
-    roc_perf <- performance(roc_pred, "rec", "prec") # nolint
+auc_roc_metric <- function(model_prob, actual_factor, CutOff) { # nolint
+    actual_numeric <-  as.numeric(levels(actual_factor))[actual_factor] # nolint
+    roc_pred <- prediction(model_prob, actual_numeric)
+
+    # Precision-Recall Curve
+    roc_perf <- performance(roc_pred, "prec", "rec")
     plot(roc_perf, avg = "threshold")
 
-    roc_auc <- performance(roc_pred, "auc") # nolint
+    # ROC Curve
+    # roc_perf2 <- performance(roc_pred, "tpr", "fpr") # nolint
+    # plot(roc_perf2, avg = "threshold") # nolint
+
+    a <- nominal_class_metrics(model_prob > 0.5, actual_factor)
+    print(paste("-----------------X----------------"))
+    b <- nominal_class_metrics(model_prob > CutOff, actual_factor)
+
+    # Marking these precision recall on the precison-recall curve
+    points(a[[2]], a[[1]], pch = 20, cex = 3, col = "red")
+    points(b[[2]], b[[1]], pch = 20, cex = 3, col = "forest green")
+
+    roc_auc <- performance(roc_pred, "auc")
     area <- roc_auc@y.values[[1]]
+    print(paste("-----------------X----------------"))
     print(paste("Area under ROC curve: ", round(area, digits = 4)))
 }
 train$Class <- as.factor(train$Class)
@@ -63,9 +79,29 @@ test$Class <- as.factor(test$Class)
 
 ######################## TRAINING #######################
 
+# Using 'rpart' package
+
+fraud_tree2 <- rpart(Class ~ ., data = train, method = "class")
+plotcp(fraud_tree2)
+
+min_cp <- fraud_tree2$cptable[which.min(fraud_tree2$cptable[, "xerror"]), "CP"]
+fraud_prune2 <- prune(fraud_tree2, cp = min_cp)
+saveRDS(fraud_prune2, "decisionTree.rds")
+rpart.plot(fraud_prune2)
+prp(fraud_prune2, faclen = 0, cex = 0.8, extra = 1)
+
+fraud_pred3 <- predict(fraud_prune2, train, type = "prob")[, 2]
+cutoff1 <- optimalCutoff(train$Class, fraud_pred3)
+auc_roc_metric(fraud_pred3, train$Class, cutoff1)
+
+fraud_pred_test3 <- predict(fraud_prune2, test, type = "prob")[, 2]
+cutoff2 <- optimalCutoff(test$Class, fraud_pred_test3)
+auc_roc_metric(fraud_pred_test3, test$Class, cutoff2)
+
+
 # Using 'tree' package
 
-fraud_tree1 <- tree(Class ~ ., data = train)
+fraud_tree1 <- tree(Class ~ ., data = train, method = "class")
 summary(fraud_tree1)
 pdf("tree.pdf", width = 6, height = 4)
 plot(fraud_tree1)
@@ -73,10 +109,11 @@ text(fraud_tree1, pretty = 0)
 title(main = "Unpruned Decision tree")
 dev.off()
 # To get a vector of probabilities, we can use type="vector"
-fraud_pred1 <- predict(fraud_tree1, newdata = train, type = "class")
-nominal_class_metrics(fraud_pred1, train$Class)
-fraud_pred_test1 <- predict(fraud_tree1, newdata = test, type = "class")
-nominal_class_metrics(fraud_pred_test1, test$Class)
+fraud_pred1 <- predict(fraud_tree1, type = "vector")[, 2]
+auc_roc_metric(fraud_pred1, train$Class, 0.5)
+
+fraud_pred_test1 <- predict(fraud_tree1, newdata = test, type = "vector")[, 2]
+auc_roc_metric(fraud_pred_test1, test$Class, 0.5)
 set.seed(41)
 cv_fraud <- cv.tree(fraud_tree1, FUN = prune.misclass)
 min_idx <- which.min(cv_fraud$dev)
@@ -89,33 +126,7 @@ summary(fraud_prune)
 plot(fraud_prune)
 text(fraud_prune, pretty = 0)
 title(main = "Pruned Decision tree")
-fraud_pred2 <- predict(fraud_prune, newdata = train, type = "class")
-nominal_class_metrics(fraud_pred2, train$Class)
-fraud_pred_test2 <- predict(fraud_prune, newdata = test, type = "class")
-nominal_class_metrics(fraud_pred_test2, test$Class)
-
-
-
-# Using 'rpart' package
-
-fraud_tree2 <- rpart(Class ~ ., data = train)
-plotcp(fraud_tree2)
-fraud_pred3 <- predict(fraud_tree2, train, type = "class")
-nominal_class_metrics(fraud_pred3, train$Class)
-fraud_pred_test3 <- predict(fraud_tree2, test, type = "class")
-nominal_class_metrics(fraud_pred_test3, test$Class)
-
-min_cp <- fraud_tree2$cptable[which.min(fraud_tree2$cptable[, "xerror"]), "CP"]
-fraud_prune2 <- prune(fraud_tree2, cp = min_cp)
-rpart.plot(fraud_prune2)
-prp(fraud_prune2, faclen = 0, cex = 0.8, extra = 1)
-fraud_pred4 <- predict(fraud_prune2, train, type = "class")
-nominal_class_metrics(fraud_pred4, train$Class)
-fraud_pred_test4 <- predict(fraud_prune2, test, type = "class")
-nominal_class_metrics(fraud_pred_test4, test$Class)
-
-
-
-######################## TESTING ##########################
-fraud_pred <- predict(fraud_tree, newdata = test, type = "class")
-nominal_class_metrics(fraud_pred, test$Class)
+fraud_pred2 <- predict(fraud_prune, newdata = train, type = "vector")[, 2]
+auc_roc_metric(fraud_pred2, train$Class, 0.5)
+fraud_pred_test2 <- predict(fraud_prune, newdata = test, type = "vector")[, 2]
+auc_roc_metric(fraud_pred_test2, test$Class, 0.5)

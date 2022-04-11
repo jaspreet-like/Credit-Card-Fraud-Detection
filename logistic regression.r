@@ -13,7 +13,6 @@ load("test_data")
 # NOTE: predicted should be as.logical and actual should be as.factor
 nominal_class_metrics <- function(predicted, actual_factor) {
     actual <- as.numeric(levels(actual_factor))[actual_factor] # nolint
-    #predicted <- as.logical(as.integer(levels(predicted_factor))[predicted_factor]) # nolint
 
     TP <- sum(actual[predicted])
     FP <- sum(!actual[predicted])
@@ -115,7 +114,6 @@ model2_prob <- predict(model2, type = "response")
 
 # For calculating the optimal cutoff probability for our probability model
 CutOff <- optimalCutoff(train$Class, model2_prob) # nolint
-CutOff
 
 # I wrote my own metric functions which calculates all the relevant performance metric scores # nolint
 train$Class <- as.factor(train$Class)
@@ -125,7 +123,6 @@ auc_roc_metric(model2_prob, train$Class, CutOff)
 head(sort(model2_prob, decreasing = TRUE), 500)
 sum(model2_prob > 0.5)
 sum(model2_prob > 0.12)
-
 
 
 

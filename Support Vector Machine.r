@@ -20,7 +20,6 @@ small_train <- rbind(a, c)
 # NOTE: Predicted should be as.logical and actual should be as.factor
 nominal_class_metrics <- function(predicted, actual) {
     actual <- as.numeric(levels(actual))[actual] # nolint
-    # predicted <- as.logical(as.integer(levels(predicted)[predicted])) # nolint
 
     TP <- sum(actual[predicted])
     FP <- sum(!actual[predicted])
@@ -95,7 +94,7 @@ small_train$Class <- as.factor(small_train$Class) # nolint
 # about 8-10 minutes on "train" dataset
 svm_model1 <- svm(Class ~ ., data = train, probability = TRUE)
 saveRDS(svm_model1, "svm.rds")
- # svm_model1 <- readRDS("svm.rds")
+svm_model1 <- readRDS("svm.rds")
 
 svm_pred1 <- predict(svm_model1, train, probability = TRUE)
 model <- attr(svm_pred1, "probabilities") [, 2]
@@ -112,7 +111,7 @@ test_pred1 <- predict(svm_model1, newdata = test,
 test_model <- attr(test_pred1, "probabilities") [, 2]
 CutOff2 <- optimalCutoff(test$Class, test_model) # nolint
 
-# Reason why 'CutOff' is so low
+# Why 'CutOff' is so low
 head(sort(test_model, decreasing = TRUE), 500)
 
 # Metrics
