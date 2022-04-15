@@ -1,5 +1,6 @@
 ######################### LOADING DATASET ########################
 library(ROCR)
+library(smotefamily)
 library(InformationValue)
 
 # Loaded with variable name "train"
@@ -7,6 +8,9 @@ load("train_data")
 
 # Loaded with variable name "test"
 load("test_data")
+
+# Loaded with variable name "train_smote"
+load("train_smote")
 # Variable names can also be verified using ls() function in console
 
 # Function to measure nominal class performance of the model
@@ -106,8 +110,12 @@ summary(model1)
 # New model ignoring the non-useful features
 model2 <- glm(Class ~ V1 + V4 + V6 + V8 + V10 + V13 + V14 + V16 + V20 + V21 + V22 + V23 + V27 + Amount, data = train, family = binomial) # nolint
 saveRDS(model2, "logisticRegression.rds")
-# model2 <- readRDS("logisticRegression.rds") # nolint
 summary(model2)
+
+# Logistic Model using the balanced dataset
+lr_smote <- glm(class ~., data = train_smote, family = "binomial")
+summary(lr_smote)
+saveRDS(lr_smote, "lr_smote.rds")
 
 # This is a vector storing probabilities of each observation to be fraudulent
 model2_prob <- predict(model2, type = "response")
@@ -116,7 +124,7 @@ model2_prob <- predict(model2, type = "response")
 CutOff <- optimalCutoff(train$Class, model2_prob) # nolint
 
 # I wrote my own metric functions which calculates all the relevant performance metric scores # nolint
-train$Class <- as.factor(train$Class)
+train$Class <- as.factor(train$Class) # nolint
 auc_roc_metric(model2_prob, train$Class, CutOff)
 
 # Why is this CutOff so small? - we look at highest 500 probabilities
@@ -130,11 +138,13 @@ sum(model2_prob > 0.12)
 
 # Making the probability vector as per our model on the test dataset
 test_model <- predict(model2, newdata = test, type = "response")
+lrb_prob <- predict(lr_smote, newdata = test, type = "response")
 
 # Calculating Optimal cutoff for test data
-CutOff <- optimalCutoff(test$Class, test_model) # nolint
-CutOff
+CutOff <- optimalCutoff(test$Class, test_model, optimiseFor = "Both") # nolint
+cutoff <- optimalCutoff(test$Class, lrb_prob, optimiseFor = "Both") # nolint
 
 # AUC for test dataset and precision-recall curve
 test$Class <- as.factor(test$Class)
 auc_roc_metric(test_model, test$Class, CutOff)
+auc_roc_metric(lrb_prob, test$Class, cutoff)

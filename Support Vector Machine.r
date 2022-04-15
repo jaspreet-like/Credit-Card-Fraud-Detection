@@ -2,6 +2,8 @@
 set.seed(41)
 library(e1071)
 library(ROCR)
+library(dplyr)
+library(smotefamily)
 library(InformationValue)
 
 # Loaded with variable name "train"
@@ -9,6 +11,9 @@ load("train_data")
 
 # Loaded with variable name "test"
 load("test_data")
+
+# Loaded with variable name "train_smote"
+load("train_smote")
 
 # Small dataset with 1010 observations for quick check test
 a <- train[1:1000, ]
@@ -86,6 +91,7 @@ auc_roc_metric <- function(model_prob, actual_factor, CutOff) { # nolint
 # We make "Class" feature of all datasets as factor
 train$Class <- as.factor(train$Class) # nolint
 test$Class <- as.factor(test$Class) # nolint
+train_smote$class <- as.factor(train_smote$class)
 small_train$Class <- as.factor(small_train$Class) # nolint
 
 ######################### TRAINING ############################
@@ -96,8 +102,17 @@ svm_model1 <- svm(Class ~ ., data = train, probability = TRUE)
 saveRDS(svm_model1, "svm.rds")
 svm_model1 <- readRDS("svm.rds")
 
+# SVM using the balanced dataset
+# It takes more than 4 hours(It is the maximum I waited... might take days)
+# So, let's reduce the size of the dataset at the expense of losing some information # nolint
+train_smote_reduced <- sample_n(train_smote, 50000)
+svm_smote <- svm(class ~ ., data = train_smote_reduced, probability = TRUE)
+saveRDS(svm_smote, "svm_smote.rds")
+
+# Predicting the probabilities vector for 'Class' variable
 svm_pred1 <- predict(svm_model1, train, probability = TRUE)
 model <- attr(svm_pred1, "probabilities") [, 2]
+
 CutOff1 <- optimalCutoff(train$Class, model) # nolint
 
 # Metrics
@@ -107,12 +122,20 @@ auc_roc_metric(model, train$Class, 0.5)
 
 # Making the probability vector as per our model on the test dataset
 test_pred1 <- predict(svm_model1, newdata = test,
-                        decision.values = TRUE, probability = TRUE)
+                decision.values = TRUE, probability = TRUE)
 test_model <- attr(test_pred1, "probabilities") [, 2]
-CutOff2 <- optimalCutoff(test$Class, test_model) # nolint
 
-# Why 'CutOff' is so low
+svmb_pred2 <- predict(svm_smote, newdata = test,
+                decision.values = TRUE, probability = TRUE)
+svmb_pred <- attr(svmb_pred2, "probabilities") [, 2]
+
+
+CutOff2 <- optimalCutoff(test$Class, test_model) # nolint
+cutoff <- optimalCutoff(test$Class, svmb_pred)
+
+# Why 'CutOff2' is so low
 head(sort(test_model, decreasing = TRUE), 500)
 
 # Metrics
 auc_roc_metric(test_model, test$Class, CutOff2)
+auc_roc_metric(svmb_pred, test$Class, cutoff)

@@ -7,9 +7,11 @@ library(caTools)
 library(dplyr)
 library(party)
 library(rpart.plot)
+library(InformationValue)
 
 load("train_data")
 load("test_data")
+load("train_smote")
 
 nominal_class_metrics <- function(predicted, actual) {
     actual <- as.numeric(levels(actual))[actual] # nolint
@@ -76,17 +78,22 @@ auc_roc_metric <- function(model_prob, actual_factor, CutOff) { # nolint
 }
 train$Class <- as.factor(train$Class)
 test$Class <- as.factor(test$Class)
+train_smote$class <- as.factor(train_smote$class)
 
 ######################## TRAINING #######################
 
 # Using 'rpart' package
 
 fraud_tree2 <- rpart(Class ~ ., data = train, method = "class")
+dt_smote <- rpart(class ~ ., data = train_smote, method = "class")
 plotcp(fraud_tree2)
 
 min_cp <- fraud_tree2$cptable[which.min(fraud_tree2$cptable[, "xerror"]), "CP"]
+min_cp_smote <- dt_smote$cptable[which.min(dt_smote$cptable[, "xerror"]), "CP"]
 fraud_prune2 <- prune(fraud_tree2, cp = min_cp)
+dt_smote <- prune(dt_smote, cp = min_cp_smote)
 saveRDS(fraud_prune2, "decisionTree.rds")
+saveRDS(dt_smote, "dt_smote.rds")
 rpart.plot(fraud_prune2)
 prp(fraud_prune2, faclen = 0, cex = 0.8, extra = 1)
 
@@ -95,8 +102,11 @@ cutoff1 <- optimalCutoff(train$Class, fraud_pred3)
 auc_roc_metric(fraud_pred3, train$Class, cutoff1)
 
 fraud_pred_test3 <- predict(fraud_prune2, test, type = "prob")[, 2]
+dt_smote_test <- predict(dt_smote, test, type = "prob")[, 2]
 cutoff2 <- optimalCutoff(test$Class, fraud_pred_test3)
+cutoff <- optimalCutoff(test$Class, dt_smote_test)
 auc_roc_metric(fraud_pred_test3, test$Class, cutoff2)
+auc_roc_metric(dt_smote_test, test$Class, cutoff)
 
 
 # Using 'tree' package

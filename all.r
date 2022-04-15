@@ -74,8 +74,8 @@ auc_roc_metric <- function(model_prob, actual_factor, CutOff, m) { # nolint
     b <- nominal_class_metrics(model_prob > CutOff, actual_factor)
 
     # Marking these precision recall on the precison-recall curve
-    points(a[7], a[6], pch = 20, cex = 2, col = "red")
-    points(b[7], b[6], pch = 20, cex = 2, col = "forest green")
+    points(a[7], a[6], pch = 20, cex = 3, col = "red")
+    points(b[7], b[6], pch = 20, cex = 3, col = "forest green")
 
     roc_auc <- performance(roc_pred, "auc")
     area <- roc_auc@y.values[[1]]
@@ -106,36 +106,38 @@ rf <- readRDS("randomForest.rds")
 
 lr_pred <- predict(lr, newdata = test, type = "response")
 foo <- predict(svm, newdata = test,
-                        decision.values = TRUE, probability = TRUE)
+        decision.values = TRUE, probability = TRUE)
 svm_pred <- attr(foo, "probabilities") [, 2]
 dt_pred <- predict(dt, newdata = test, type = "prob")[, 2]
 rf_pred <- predict(rf, newdata = test, type = "prob")[, 2]
 
-lr_cutoff <- optimalCutoff(test$Class, lr_pred) # nolint
+lr_cutoff <- optimalCutoff(test$Class, lr_pred)
 svm_cutoff <- optimalCutoff(test$Class, svm_pred)
 dt_cutoff <- optimalCutoff(test$Class, dt_pred)
 rf_cutoff <- optimalCutoff(test$Class, rf_pred)
 
 
 test$Class <- as.factor(test$Class)
-pdf("Prec-Recall.pdf", width = 10, height = 10)
+#pdf("Prec-Recall.pdf", width = 10, height = 10)
+png("prec_recall_curves.png", width = 1024, height = 1024, units = "px")
 par(mfrow = c(2, 2))
 l <- auc_roc_metric(lr_pred, test$Class, lr_cutoff, 1)
 s <- auc_roc_metric(svm_pred, test$Class, svm_cutoff, 2)
 d <- auc_roc_metric(dt_pred, test$Class, dt_cutoff, 3)
 r <- auc_roc_metric(rf_pred, test$Class, rf_cutoff, 4)
-mtext("Prec-Recall Curves for Original Data", outer = TRUE,  cex = 1.5, line = -1.4, col = "red") # nolint
+#mtext("Prec-Recall Curves for Original Data", outer = TRUE,  cex = 1.5, line = -1.4, col = "red") # nolint
 dev.off()
 
-pdf("roc.pdf", width = 4, height = 4)
+#pdf("roc.pdf", width = 4, height = 4)
+png("roc_curves.png", width = 300, height = 300, units = "px")
 roc_curve(lr_pred, test$Class, lr_cutoff, 1)
 roc_curve(svm_pred, test$Class, svm_cutoff, 2)
 roc_curve(dt_pred, test$Class, dt_cutoff, 3)
 roc_curve(rf_pred, test$Class, rf_cutoff, 4)
-mtext("ROC Curves for Original Data", outer = TRUE,  cex = 1, line = -1.4, col = "red") # nolint
+#mtext("ROC Curves for Original Data", outer = TRUE,  cex = 1, line = -1.4, col = "red") # nolint
 legend(x = "bottomright", legend = c("Logistic Regression", "SVM",
     "Decision Tree", "Random Forest"), fill = c("black", "blue",
-        "orange", "pink"))
+        "orange", "pink"), cex = 0.8)
 dev.off()
 
 pn <- rbind(l[1:4], s[1:4], d[1:4], r[1:4])
@@ -156,12 +158,9 @@ mytable1 <- tableGrob(pn, theme = ttheme_default
             (core = list(bg_params = list(fill = "grey99"))))
 mytable2 <- tableGrob(metrics, theme = ttheme_default
             (core = list(bg_params = list(fill = "grey99"))))
-pdf("metrics.pdf", width = 10, height = 8)
-grid.arrange(mytable1, mytable2, ncol = 1, nrow = 2)
+#pdf("metrics.pdf", width = 10, height = 8)
+#grid.arrange(mytable1, mytable2, ncol = 1, nrow = 2)
+png("metrics_table1.png", width = 560, height = 240, units = "px")
+png("metrics_table2.png", width = 760, height = 240, units = "px")
+grid.draw(mytable2)
 dev.off()
-
-
-
-######################## Handling Unbalanced Data ##########################
-
-library(smotefamily)

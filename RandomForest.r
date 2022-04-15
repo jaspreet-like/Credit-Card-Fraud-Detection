@@ -6,6 +6,7 @@ library(InformationValue)
 
 load("train_data")
 load("test_data")
+load("train_smote")
 
 nominal_class_metrics <- function(predicted, actual) {
     actual <- as.numeric(levels(actual))[actual] # nolint
@@ -72,10 +73,13 @@ auc_roc_metric <- function(model_prob, actual_factor, CutOff) { # nolint
 }
 train$Class <- as.factor(train$Class)
 test$Class <- as.factor(test$Class)
+train_smote$class <- as.factor(train_smote$class)
 
 ######################## TRAINING #######################
 
 fraud_rf <- randomForest(Class ~ ., data = train, ntree = 10, importance = TRUE)
+rf_smote <- randomForest(class ~ ., data = train_smote, ntree = 10, importance = TRUE) # nolint
+saveRDS(rf_smote, "rf_smote.rds")
 saveRDS(fraud_rf, "randomForest.rds")
 fraud_pred <- predict(fraud_rf, train, type = "prob")[, 2]
 auc_roc_metric(fraud_pred, train$Class, 0.5)
@@ -90,8 +94,11 @@ auc_roc_metric(predict(fraud_rf_tune, train, type = "prob")[, 2], train$Class, 0
 
 ######################## TESTING ##########################
 fraud_pred_test <- predict(fraud_rf, newdata = test, type = "prob")[, 2]
+rf_smote_test <- predict(rf_smote, newdata = test, type = "prob") [, 2]
 cutoff1 <- optimalCutoff(test$Class, fraud_pred_test)
+cutoff <- optimalCutoff(test$Class, rf_smote_test)
 auc_roc_metric(fraud_pred_test, test$Class, cutoff1)
+auc_roc_metric(rf_smote_test, test$Class, cutoff)
 
 fraud_pred_test2 <- predict(fraud_rf_tune, newdata = test, type = "prob")[, 2]
 cutoff2 <- optimalCutoff(test$Class, fraud_pred_test2)
